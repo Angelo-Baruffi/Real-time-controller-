@@ -90,6 +90,7 @@ int recebe_mensagem(int socket_local, char *buffer, int TAM_BUFFER)
 	return bytes_recebidos;
 }
 
+gg
 
 
 
