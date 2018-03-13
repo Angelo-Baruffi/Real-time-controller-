@@ -90,7 +90,6 @@ int recebe_mensagem(int socket_local, char *buffer, int TAM_BUFFER)
 	return bytes_recebidos;
 }
 
-gg
 
 
 
@@ -122,7 +121,7 @@ int main(int argc, char *argv[])
 		sprintf(msg_enviada, "tentativa %d ", i);		
 		strcat(msg_enviada, argv[3]);
 
-		envia_mensagem(socket_local, endereco_destino, msg_enviada);
+		envia_mensagem(socket_local, endereco_destino, "st-0");
 
 		nrec = recebe_mensagem(socket_local, msg_recebida, 1000);
 		printf("Mensagem de resposta com %d bytes >>>%s\n", nrec, msg_recebida);

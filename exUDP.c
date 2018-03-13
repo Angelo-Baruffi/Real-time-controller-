@@ -95,15 +95,6 @@ int recebe_mensagem(int socket_local, char *buffer, int TAM_BUFFER)
 
 int main(int argc, char *argv[])
 {
-	if (argc < 4) { 
-		fprintf(stderr,"Uso: udpcliente endere�o porta palavra \n");
-		fprintf(stderr,"onde o endere�o � o endere�o do servidor \n");
-		fprintf(stderr,"porta � o n�mero da porta do servidor \n");
-		fprintf(stderr,"palavra � a palavra que ser� enviada ao servidor \n");
-		fprintf(stderr,"exemplo de uso:\n");
-		fprintf(stderr,"   udpcliente baker.das.ufsc.br 1234 \"ola\"\n");
-		exit(FALHA);
-	}
 
 	int porta_destino = atoi( argv[2]);
 
@@ -117,11 +108,8 @@ int main(int argc, char *argv[])
 	int nrec;
 
 	do{
-		printf("tentativa %d\n", i);
-		sprintf(msg_enviada, "tentativa %d ", i);		
-		strcat(msg_enviada, argv[3]);
 
-		envia_mensagem(socket_local, endereco_destino, msg_enviada);
+		envia_mensagem(socket_local, endereco_destino, "st-0");
 
 		nrec = recebe_mensagem(socket_local, msg_recebida, 1000);
 		printf("Mensagem de resposta com %d bytes >>>%s\n", nrec, msg_recebida);
