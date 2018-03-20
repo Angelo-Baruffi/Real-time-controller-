@@ -1,0 +1,42 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
+#include <string.h>
+
+#define NSEC_PER_SEC    (1000000000) /* The number of nsecs per sec. */
+int error_prior = 0;
+int error = 0;
+int integral = 0;
+int derivative = 0;
+float bias = 0.00001;
+KP = ;
+KI = ;
+
+int main(int argc, char* argv[])
+{
+        struct timespec t;
+        int interval = 50000; /* 50us*/
+
+        clock_gettime(CLOCK_MONOTONIC ,&t);
+        /* start after one second */
+        t.tv_sec++;
+
+        while(1) {
+                /* wait until next shot */
+                clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL);
+
+                error = Tref  T;
+    		integral = integral + (error*iteration_time);
+    		derivative = (error  error_prior)/iteration_time;
+    		output = KP*error + KI*integral + bias;
+    		error_prior = error;
+
+                /* calculate next shot */
+                t.tv_nsec += interval;
+
+                while (t.tv_nsec >= NSEC_PER_SEC) {
+                       t.tv_nsec -= NSEC_PER_SEC;
+                        t.tv_sec++;
+                }
+   }
+}

@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <string.h>
@@ -87,15 +86,53 @@ int recebe_mensagem(int socket_local, char *buffer, int TAM_BUFFER)
 	return bytes_recebidos;
 }
 
+int str_cut(char *str, int begin, int len)
+{
+    int l = strlen(str);
+
+    if (len < 0) len = l - begin;
+    if (begin + len > l) len = l - begin;
+    memmove(str + begin, str + begin + len, l - len + 1);
+
+    return len;
+}
 
 int main(int argc, char* argv[])
 {
 	
         struct timespec t;
         int interval = 50000; /* 50us*/
+	
+	/*Variaveis de comunicação*/
 
-        clock_gettime(CLOCK_MONOTONIC ,&t);
+	int porta_destino = atoi( argv[2]);
+
+	int socket_local = cria_socket_local();
+
+	struct sockaddr_in endereco_destino = cria_endereco_destino(argv[1], porta_destino);
+
+	int i = 0;    
+	char msg_enviada[1000];  
+	char msg_recebida[1000];
+	int nrec;
+
+	/*Variaveis de controle*/
+	float error_prior = 0;
+	float error = 0;
+	float integral = 0;
+	float derivative = 0;
+	float bias = 0.00000;
+	float KP = 10;
+	float KI = 0.5;
+	float Href = 2;
+	float output = 0;
+	double H = 0;
+	char outputStr[] = "ani";
+	char outputStr2[20];
+
+
         /* start after one second */
+        clock_gettime(CLOCK_MONOTONIC ,&t);
         t.tv_sec++;
 
         while(1) {
@@ -103,6 +140,37 @@ int main(int argc, char* argv[])
                 clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL);
 
                 /* do the stuff */
+		
+		/*Enviar mensagem*/
+		// envia_mensagem(socket_local, endereco_destino, "st-0");
+		/*Recebe mensagem*/
+		// nrec = recebe_mensagem(socket_local, msg_recebida, 1000);
+
+		/*
+			Map das Chaves:
+			sh-0 -> H -> Altura do nível de água
+			aniX -> Ni -> Váriavel de controle. Entrada da água. X é a qtd.		
+		*/
+		envia_mensagem(socket_local, endereco_destino, "sh-0");
+		nrec = recebe_mensagem(socket_local, msg_recebida, 1000);
+		str_cut(msg_recebida, 0, 3);
+		H = atof(msg_recebida);
+		//printf("String>>>%s Double>>>%lf\n", msg_recebida, H);
+		
+		error = Href - H;
+    		integral = integral + (error*interval/NSEC_PER_SEC);
+    		derivative = (error - error_prior)/(interval/NSEC_PER_SEC);
+    		output = KP*error + KI*integral + bias;
+    		error_prior = error;
+
+		
+		/* Envia String via UDP */
+		snprintf(outputStr2, 20, "%lf", output); 
+		strcat(outputStr, outputStr2);
+		envia_mensagem(socket_local, endereco_destino, outputStr);
+		printf("String>>>%s\n", outputStr);
+		strcpy(outputStr, "ani");
+
 
                 /* calculate next shot */
                 t.tv_nsec += interval;
