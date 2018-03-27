@@ -1,4 +1,4 @@
-#include <stdlib.h>
+﻿#include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
 #include <sys/types.h>
@@ -19,7 +19,7 @@
 
 int cria_socket_local(void)
 {
-	int socket_local;		/* Socket usado na comunicac�o */
+	int socket_local;		/* Socket usado na comunicacao*/
 
 	socket_local = socket( PF_INET, SOCK_DGRAM, 0);
 	if (socket_local < 0) {
@@ -30,14 +30,11 @@ int cria_socket_local(void)
 }
 
 
-
-
-
 struct sockaddr_in cria_endereco_destino(char *destino, int porta_destino)
 {
-	struct sockaddr_in servidor; 	/* Endere�o do servidor incluindo ip e porta */
-	struct hostent *dest_internet;	/* Endere�o destino em formato pr�prio */
-	struct in_addr dest_ip;		/* Endere�o destino em formato ip num�rico */
+	struct sockaddr_in servidor; 	/* Endere o do servidor incluindo ip e porta */
+	struct hostent *dest_internet;	/* Endere o destino em formato pr prio */
+	struct in_addr dest_ip;		/* Endere o destino em formato ip num rico */
 
 	if (inet_aton ( destino, &dest_ip ))
 		dest_internet = gethostbyaddr((char *)&dest_ip, sizeof(dest_ip), AF_INET);
@@ -45,7 +42,7 @@ struct sockaddr_in cria_endereco_destino(char *destino, int porta_destino)
 		dest_internet = gethostbyname(destino);
 
 	if (dest_internet == NULL) {
-		fprintf(stderr,"Endere�o de rede inv�lido\n");
+		fprintf(stderr,"Endere o de rede inv lido\n");
 		exit(FALHA);
 	}
 
@@ -74,7 +71,7 @@ void envia_mensagem(int socket_local, struct sockaddr_in endereco_destino, char 
 
 int recebe_mensagem(int socket_local, char *buffer, int TAM_BUFFER)
 {
-	int bytes_recebidos;		/* N�mero de bytes recebidos */
+	int bytes_recebidos;		/* N mero de bytes recebidos */
 
 	/* Espera pela msg de resposta do servidor */
 	bytes_recebidos = recvfrom(socket_local, buffer, TAM_BUFFER, 0, NULL, 0);
@@ -100,8 +97,8 @@ int str_cut(char *str, int begin, int len)
 int main(int argc, char* argv[])
 {
 	
-        struct timespec t;
-        int interval = 50000; /* 50us*/
+	struct timespec t;
+	int interval = 50000; /* 50us*/
 	
 	/*Variaveis de comunicação*/
 
@@ -121,9 +118,9 @@ int main(int argc, char* argv[])
 	float error = 0;
 	float integral = 0;
 	float derivative = 0;
-	float bias = 0.00000;
-	float KP = 10;
-	float KI = 0.5;
+	float bias = 0.0000001;
+	float KP = 10000;
+	float KI = 50000;
 	float Href = 2;
 	float output = 0;
 	double H = 0;
@@ -132,14 +129,14 @@ int main(int argc, char* argv[])
 
 
         /* start after one second */
-        clock_gettime(CLOCK_MONOTONIC ,&t);
-        t.tv_sec++;
+	clock_gettime(CLOCK_MONOTONIC ,&t);
+	t.tv_sec++;
 
-        while(1) {
-                /* wait until next shot */
-                clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL);
+	while(1) {
+		/* wait until next shot */
+		clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL);
 
-                /* do the stuff */
+		/* do the stuff */
 		
 		/*Enviar mensagem*/
 		// envia_mensagem(socket_local, endereco_destino, "st-0");
@@ -153,33 +150,42 @@ int main(int argc, char* argv[])
 		*/
 		envia_mensagem(socket_local, endereco_destino, "sh-0");
 		nrec = recebe_mensagem(socket_local, msg_recebida, 1000);
+		msg_recebida[nrec]='\0';
+		//printf("String>>>%s\n", msg_recebida);
+
 		str_cut(msg_recebida, 0, 3);
 		H = atof(msg_recebida);
 		//printf("String>>>%s Double>>>%lf\n", msg_recebida, H);
 		
 		error = Href - H;
-    		integral = integral + (error*interval/NSEC_PER_SEC);
-    		derivative = (error - error_prior)/(interval/NSEC_PER_SEC);
-    		output = KP*error + KI*integral + bias;
-    		error_prior = error;
+		integral = integral + (error*interval/NSEC_PER_SEC);
+		derivative = (error - error_prior)/(interval/NSEC_PER_SEC);
+		output = KP*error + KI*integral + bias;
+		error_prior = error;
 
+		/* Saturação */
+		if(output < 0){
+			output = 0;
+		}
 		
 		/* Envia String via UDP */
 		snprintf(outputStr2, 20, "%lf", output); 
 		strcat(outputStr, outputStr2);
 		envia_mensagem(socket_local, endereco_destino, outputStr);
-		printf("String>>>%s\n", outputStr);
+		nrec = recebe_mensagem(socket_local, msg_recebida, 1000);
+
+		printf("Atuacao>>> %s\n", outputStr);
 		strcpy(outputStr, "ani");
 
 
-                /* calculate next shot */
-                t.tv_nsec += interval;
+		/* calculate next shot */
+		t.tv_nsec += interval;
 
-                while (t.tv_nsec >= NSEC_PER_SEC) {
-                       t.tv_nsec -= NSEC_PER_SEC;
-                        t.tv_sec++;
-                }
-   }
+		while (t.tv_nsec >= NSEC_PER_SEC) {
+				t.tv_nsec -= NSEC_PER_SEC;
+				t.tv_sec++;
+		}
+    }
 }
 
 
