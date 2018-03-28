@@ -98,7 +98,7 @@ int main(int argc, char* argv[])
 {
 	
 	struct timespec t;
-	int interval = 50000; /* 50us*/
+	int interval = 50000000; /* 50ms*/
 	
 	/*Variaveis de comunicação*/
 
@@ -108,7 +108,7 @@ int main(int argc, char* argv[])
 
 	struct sockaddr_in endereco_destino = cria_endereco_destino(argv[1], porta_destino);
 
-	int i = 0;    
+	int i = 0;   
 	char msg_enviada[1000];  
 	char msg_recebida[1000];
 	int nrec;
@@ -126,13 +126,23 @@ int main(int argc, char* argv[])
 	double H = 0;
 	char outputStr[] = "ani";
 	char outputStr2[20];
+	
+	//Variavel para printar
+	int intToPrint = 0;
+	
+	//Variavel para salvar amostras
+	int amostras = 0;
+	float tempos[10000];
+	struct timespec tempo;
 
+	FILE *f;
+    f = fopen("times.txt", "w");
 
         /* start after one second */
 	clock_gettime(CLOCK_MONOTONIC ,&t);
 	t.tv_sec++;
 
-	while(1) {
+	while(amostras != 100) {
 		/* wait until next shot */
 		clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL);
 
@@ -151,11 +161,9 @@ int main(int argc, char* argv[])
 		envia_mensagem(socket_local, endereco_destino, "sh-0");
 		nrec = recebe_mensagem(socket_local, msg_recebida, 1000);
 		msg_recebida[nrec]='\0';
-		//printf("String>>>%s\n", msg_recebida);
 
 		str_cut(msg_recebida, 0, 3);
 		H = atof(msg_recebida);
-		//printf("String>>>%s Double>>>%lf\n", msg_recebida, H);
 		
 		error = Href - H;
 		integral = integral + (error*interval/NSEC_PER_SEC);
@@ -173,11 +181,26 @@ int main(int argc, char* argv[])
 		strcat(outputStr, outputStr2);
 		envia_mensagem(socket_local, endereco_destino, outputStr);
 		nrec = recebe_mensagem(socket_local, msg_recebida, 1000);
-
-		printf("Atuacao>>> %s\n", outputStr);
 		strcpy(outputStr, "ani");
+		
+		
+		//Calcula tempo de execucao
+		clock_gettime(CLOCK_MONOTONIC ,&tempo);
+		tempos[amostras] = (tempo.tv_sec + tempo.tv_nsec/NSEC_PER_SEC - t.tv_sec - t.tv_nsec/NSEC_PER_SEC)*1000;
+		amostras++;
 
 
+		//printf("Atuacao>>> %s\n", outputStr);
+		
+		// Mostrar cada resultado a aproximadamente 1s
+		if(intToPrint == 20){
+			printf("Saida do sistema: %lf. Atuacao: %s. Iteracao: %i. Amostras: %i\n", H,msg_recebida, intToPrint, amostras);
+			intToPrint = 0;
+		}else{
+			intToPrint++;
+		}
+
+		
 		/* calculate next shot */
 		t.tv_nsec += interval;
 
@@ -186,9 +209,12 @@ int main(int argc, char* argv[])
 				t.tv_sec++;
 		}
     }
+    
+    
+    //Salva a lista de tempos das amostras
+	for (i=0; i<=10; ++i)
+        //fprintf(f, "%d, %d\n", i, i*i);
+        fprintf(f, "%s", tempos[i]);
+    
+    fclose(f);
 }
-
-
-
-
-
