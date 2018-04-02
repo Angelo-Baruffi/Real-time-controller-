@@ -15,6 +15,8 @@
 
 #define NSEC_PER_SEC    (1000000000) /* The number of nsecs per sec. */
 
+#define AMOSTRAS_TO_GET 10000
+
 /* -lrt */
 
 int cria_socket_local(void)
@@ -142,7 +144,7 @@ int main(int argc, char* argv[])
 	clock_gettime(CLOCK_MONOTONIC ,&t);
 	t.tv_sec++;
 
-	while(amostras != 1000) {
+	while(amostras != AMOSTRAS_TO_GET) {
 		/* wait until next shot */
 		clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL);
 
@@ -188,7 +190,7 @@ int main(int argc, char* argv[])
 		clock_gettime(CLOCK_MONOTONIC ,&tempo);
 		//tempos[amostras] = ((double)tempo.tv_sec + (double)tempo.tv_nsec/NSEC_PER_SEC - (double)t.tv_sec - (double)t.tv_nsec/NSEC_PER_SEC)*1000.0;
 		tempos[amostras] = (double) difftime(tempo.tv_nsec, t.tv_nsec);
-		amostras++;
+		if(tempos[amostras] > 0)amostras++;
 
 
 		//printf("Atuacao>>> %s\n", outputStr);
@@ -213,7 +215,7 @@ int main(int argc, char* argv[])
     
     
     //Salva a lista de tempos das amostras
-	for (i=0; i<1000; ++i)
+	for (i=0; i<AMOSTRAS_TO_GET; ++i)
         //fprintf(f, "%d, %d\n", i, i*i);
         fprintf(f, "%lf\n", tempos[i]/1000);
         
