@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
 	
 	//Variavel para salvar amostras
 	int amostras = 0;
-	float tempos[10000];
+	double tempos[10000];
 	struct timespec tempo;
 
 	FILE *f;
@@ -142,7 +142,7 @@ int main(int argc, char* argv[])
 	clock_gettime(CLOCK_MONOTONIC ,&t);
 	t.tv_sec++;
 
-	while(amostras != 100) {
+	while(amostras != 1000) {
 		/* wait until next shot */
 		clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL);
 
@@ -186,7 +186,8 @@ int main(int argc, char* argv[])
 		
 		//Calcula tempo de execucao
 		clock_gettime(CLOCK_MONOTONIC ,&tempo);
-		tempos[amostras] = (tempo.tv_sec + tempo.tv_nsec/NSEC_PER_SEC - t.tv_sec - t.tv_nsec/NSEC_PER_SEC)*1000;
+		//tempos[amostras] = ((double)tempo.tv_sec + (double)tempo.tv_nsec/NSEC_PER_SEC - (double)t.tv_sec - (double)t.tv_nsec/NSEC_PER_SEC)*1000.0;
+		tempos[amostras] = (double) difftime(tempo.tv_nsec, t.tv_nsec);
 		amostras++;
 
 
@@ -194,7 +195,7 @@ int main(int argc, char* argv[])
 		
 		// Mostrar cada resultado a aproximadamente 1s
 		if(intToPrint == 20){
-			printf("Saida do sistema: %lf. Atuacao: %s. Iteracao: %i. Amostras: %i\n", H,msg_recebida, intToPrint, amostras);
+			printf("Saida do sistema: %lf. Atuacao: %s. Amostras: %i\n", H,msg_recebida, amostras);
 			intToPrint = 0;
 		}else{
 			intToPrint++;
@@ -212,9 +213,10 @@ int main(int argc, char* argv[])
     
     
     //Salva a lista de tempos das amostras
-	for (i=0; i<=10; ++i)
+	for (i=0; i<1000; ++i)
         //fprintf(f, "%d, %d\n", i, i*i);
-        fprintf(f, "%s", tempos[i]);
+        fprintf(f, "%lf\n", tempos[i]/1000);
+        
     
     fclose(f);
 }
