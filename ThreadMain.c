@@ -1,4 +1,4 @@
-﻿//This controller don't have threads
+// This controller have threads
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netdb.h>
+#include <pthreads.h>
 
 #define FALHA 1
 
@@ -20,6 +21,18 @@
 #define AMOSTRAS_TO_GET 10000
 
 /* -lrt */
+
+double tempos_H[10000];
+struct timespec tempo_H;
+double tempos_T[10000];
+struct timespec tempo_T;
+FILE *f;
+
+// Set points
+float Href = 2;
+float Tref = 2;
+
+
 
 int cria_socket_local(void)
 {
@@ -32,7 +45,6 @@ int cria_socket_local(void)
 	}
 	return socket_local;
 }
-
 
 struct sockaddr_in cria_endereco_destino(char *destino, int porta_destino)
 {
@@ -57,9 +69,6 @@ struct sockaddr_in cria_endereco_destino(char *destino, int porta_destino)
 
 	return servidor;
 }
-
-
-
 
 void envia_mensagem(int socket_local, struct sockaddr_in endereco_destino, char *mensagem)
 {
@@ -98,9 +107,7 @@ int str_cut(char *str, int begin, int len)
     return len;
 }
 
-int main(int argc, char* argv[])
-{
-	
+void h_cntroller(void){ // Ni e Nf
 	struct timespec t;
 	int interval = 50000000; /* 50ms*/
 	
@@ -112,7 +119,6 @@ int main(int argc, char* argv[])
 
 	struct sockaddr_in endereco_destino = cria_endereco_destino(argv[1], porta_destino);
 
-	int i = 0;   
 	char msg_enviada[1000];  
 	char msg_recebida[1000];
 	int nrec;
@@ -125,43 +131,20 @@ int main(int argc, char* argv[])
 	float bias = 0.0000001;
 	float KP = 10000;
 	float KI = 50000;
-	float Href = 2;
 	float output = 0;
 	double H = 0;
 	char outputStr[] = "ani";
 	char outputStr2[20];
-	
-	//Variavel para printar
-	int intToPrint = 0;
-	
-	//Variavel para salvar amostras
+
 	int amostras = 0;
-	double tempos[10000];
-	struct timespec tempo;
 
-	FILE *f;
-    f = fopen("times.txt", "w");
 
-        /* start after one second */
 	clock_gettime(CLOCK_MONOTONIC ,&t);
-	t.tv_sec++;
+	//t.tv_sec++;
 
-	while(amostras != AMOSTRAS_TO_GET) {
-		/* wait until next shot */
+	while(amostras != AMOSTRAS_TO_GET){
 		clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL);
 
-		/* do the stuff */
-		
-		/*Enviar mensagem*/
-		// envia_mensagem(socket_local, endereco_destino, "st-0");
-		/*Recebe mensagem*/
-		// nrec = recebe_mensagem(socket_local, msg_recebida, 1000);
-
-		/*
-			Map das Chaves:
-			sh-0 -> H -> Altura do nível de água
-			aniX -> Ni -> Váriavel de controle. Entrada da água. X é a qtd.		
-		*/
 		envia_mensagem(socket_local, endereco_destino, "sh-0");
 		nrec = recebe_mensagem(socket_local, msg_recebida, 1000);
 		msg_recebida[nrec]='\0';
@@ -186,13 +169,123 @@ int main(int argc, char* argv[])
 		envia_mensagem(socket_local, endereco_destino, outputStr);
 		nrec = recebe_mensagem(socket_local, msg_recebida, 1000);
 		strcpy(outputStr, "ani");
-		
-		
+
 		//Calcula tempo de execucao
-		clock_gettime(CLOCK_MONOTONIC ,&tempo);
-		//tempos[amostras] = ((double)tempo.tv_sec + (double)tempo.tv_nsec/NSEC_PER_SEC - (double)t.tv_sec - (double)t.tv_nsec/NSEC_PER_SEC)*1000.0;
-		tempos[amostras] = (double) difftime(tempo.tv_nsec, t.tv_nsec);
-		if(tempos[amostras] > 0)amostras++;
+		clock_gettime(CLOCK_MONOTONIC ,&tempo_H);
+		tempos_H[amostras] = (double) difftime(tempo_H.tv_nsec, t.tv_nsec);
+		if(tempos_H[amostras] > 0)amostras++;
+
+		/* calculate next shot */
+		t.tv_nsec += interval;
+
+		while (t.tv_nsec >= NSEC_PER_SEC) {
+				t.tv_nsec -= NSEC_PER_SEC;
+				t.tv_sec++;
+		}
+	}
+
+}
+
+void t_controller(void){ // Q e o Na
+	struct timespec t;
+	int interval = 70000000; /* 70ms*/
+	
+	/*Variaveis de comunicação*/
+
+	int porta_destino = atoi( argv[2]);
+
+	int socket_local = cria_socket_local();
+
+	struct sockaddr_in endereco_destino = cria_endereco_destino(argv[1], porta_destino);
+
+	char msg_enviada[1000];  
+	char msg_recebida[1000];
+	int nrec;
+
+	/*Variaveis de controle*/
+	float error_prior = 0;
+	float error = 0;
+	float integral = 0;
+	float derivative = 0;
+	float bias = 0.0000001;
+	float KP = 10000;
+	float KI = 50000;
+	float output = 0;
+	double T = 0;
+	char outputStr[] = "aq-";
+	char outputStr2[20];
+
+	int amostras = 0;
+
+
+	clock_gettime(CLOCK_MONOTONIC ,&t);
+	//t.tv_sec++;
+
+	while(amostras != AMOSTRAS_TO_GET){
+		clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL);
+
+		envia_mensagem(socket_local, endereco_destino, "sti0");
+		nrec = recebe_mensagem(socket_local, msg_recebida, 1000);
+		msg_recebida[nrec]='\0';
+
+		str_cut(msg_recebida, 0, 3);
+		T = atof(msg_recebida);
+		
+		error = Tref - T;
+		integral = integral + (error*interval/NSEC_PER_SEC);
+		derivative = (error - error_prior)/(interval/NSEC_PER_SEC);
+		output = KP*error + KI*integral + bias;
+		error_prior = error;
+
+		/* Saturação */
+		if(output < 0){
+			output = 0;
+		}
+		
+		/* Envia String via UDP */
+		snprintf(outputStr2, 20, "%lf", output); 
+		strcat(outputStr, outputStr2);
+		envia_mensagem(socket_local, endereco_destino, outputStr);
+		nrec = recebe_mensagem(socket_local, msg_recebida, 1000);
+		strcpy(outputStr, "aq-");
+
+		//Calcula tempo de execucao
+		clock_gettime(CLOCK_MONOTONIC ,&tempo_H);
+		tempos_H[amostras] = (double) difftime(tempo_H.tv_nsec, t.tv_nsec);
+		if(tempos_H[amostras] > 0)amostras++;
+
+		/* calculate next shot */
+		t.tv_nsec += interval;
+
+		while (t.tv_nsec >= NSEC_PER_SEC) {
+				t.tv_nsec -= NSEC_PER_SEC;
+				t.tv_sec++;
+		}
+	}
+
+
+}
+
+void show_vars(void){
+	//Variavel para printar
+	int intToPrint = 0;
+
+}
+
+void get_SP(void){
+
+}
+int main(int argc, char* argv[])
+{	
+    f = fopen("times.txt", "w");
+	int i = 0;   
+
+	//Variavel para salvar amostras
+
+	
+
+	while(amostras != AMOSTRAS_TO_GET) {
+		
 
 
 		//printf("Atuacao>>> %s\n", outputStr);
@@ -216,10 +309,10 @@ int main(int argc, char* argv[])
     }
     
     
-    //Salva a lista de tempos das amostras
+    //Salva a lista de tempo2 das amostras
 	for (i=0; i<AMOSTRAS_TO_GET; ++i)
         //fprintf(f, "%d, %d\n", i, i*i);
-        fprintf(f, "%lf\n", tempos[i]/1000);
+        fprintf(f, "%lf\n", tempos_H[i]/1000);
         
     
     fclose(f);
