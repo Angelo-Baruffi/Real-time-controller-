@@ -10,7 +10,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netdb.h>
-#include <pthreads.h>
+#include <pthread.h>
 
 #define FALHA 1
 
