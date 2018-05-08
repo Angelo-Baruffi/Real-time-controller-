@@ -36,6 +36,7 @@ pthread_t SP_thread;
 pthread_t alert_thread;
 pthread_t write_thread;
 
+char* arg[3];
 
 double tempos_H[10000];
 struct timespec tempo_H;
@@ -126,11 +127,11 @@ void h_cntroller(void){ // Ni e Nf
 	
 	/*Variaveis de comunicação*/
 
-	int porta_destino = atoi( argv[2]);
+	int porta_destino = atoi( arg[2]);
 
 	int socket_local = cria_socket_local();
 
-	struct sockaddr_in endereco_destino = cria_endereco_destino(argv[1], porta_destino);
+	struct sockaddr_in endereco_destino = cria_endereco_destino(arg[1], porta_destino);
 
 	char msg_enviada[1000];  
 	char msg_recebida[1000];
@@ -206,11 +207,11 @@ void t_controller(void){ // Q e o Na
 	
 	/*Variaveis de comunicação*/
 
-	int porta_destino = atoi( argv[2]);
+	int porta_destino = atoi( arg[2]);
 
 	int socket_local = cria_socket_local();
 
-	struct sockaddr_in endereco_destino = cria_endereco_destino(argv[1], porta_destino);
+	struct sockaddr_in endereco_destino = cria_endereco_destino(arg[1], porta_destino);
 
 	char msg_enviada[1000];  
 	char msg_recebida[1000];
@@ -306,6 +307,8 @@ int main(int argc, char* argv[])
 	// Set points
 	Href = 2;
 	Tref = 2;
+	arg[2] = argv[2];
+	arg[1] = argv[1];
 /*
 	while(amostras != AMOSTRAS_TO_GET) {
 		
