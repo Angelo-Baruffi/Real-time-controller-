@@ -46,7 +46,6 @@ FILE *f;
 float Href;
 float Tref;
 
-
 int cria_socket_local(void)
 {
 	int socket_local;		/* Socket usado na comunicacao*/
@@ -118,86 +117,6 @@ int str_cut(char *str, int begin, int len)
     memmove(str + begin, str + begin + len, l - len + 1);
 
     return len;
-}
-
-void h_cntroller(void){ // Ni e Nf
-// Thread to control the H
-	struct timespec t;
-	int interval = 50000000; /* 50ms*/
-	
-	/*Variaveis de comunicação*/
-
-	int porta_destino = atoi( arg[2]);
-
-	int socket_local = cria_socket_local();
-
-	struct sockaddr_in endereco_destino = cria_endereco_destino(arg[1], porta_destino);
-
-	char msg_enviada[1000];  
-	char msg_recebida[1000];
-	int nrec;
-
-	/*Variaveis de controle*/
-	float error_prior = 0;
-	float error = 0;
-	float integral = 0;
-	float derivative = 0;
-	float bias = 0.0000001;
-	float KP = 10000;
-	float KI = 50000;
-	float output = 0;
-	double H = 0;
-	char outputStr[] = "ani";
-	char outputStr2[20];
-
-	int amostras = 0;
-
-
-	clock_gettime(CLOCK_MONOTONIC ,&t);
-	//t.tv_sec++;
-
-	while(amostras != AMOSTRAS_TO_GET){
-		clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL);
-
-		envia_mensagem(socket_local, endereco_destino, "sh-0");
-		nrec = recebe_mensagem(socket_local, msg_recebida, 1000);
-		msg_recebida[nrec]='\0';
-
-		str_cut(msg_recebida, 0, 3);
-		H = atof(msg_recebida);
-		
-		error = Href - H;
-		integral = integral + (error*interval/NSEC_PER_SEC);
-		derivative = (error - error_prior)/(interval/NSEC_PER_SEC);
-		output = KP*error + KI*integral + bias;
-		error_prior = error;
-
-		/* Saturação */
-		if(output < 0){
-			output = 0;
-		}
-		
-		/* Envia String via UDP */
-		snprintf(outputStr2, 20, "%lf", output); 
-		strcat(outputStr, outputStr2);
-		envia_mensagem(socket_local, endereco_destino, outputStr);
-		nrec = recebe_mensagem(socket_local, msg_recebida, 1000);
-		strcpy(outputStr, "ani");
-
-		//Calcula tempo de execucao
-		clock_gettime(CLOCK_MONOTONIC ,&tempo_H);
-		tempos_H[amostras] = (double) difftime(tempo_H.tv_nsec, t.tv_nsec);
-		if(tempos_H[amostras] > 0)amostras++;
-
-		/* calculate next shot */
-		t.tv_nsec += interval;
-
-		while (t.tv_nsec >= NSEC_PER_SEC) {
-				t.tv_nsec -= NSEC_PER_SEC;
-				t.tv_sec++;
-		}
-	}
-
 }
 
 void t_controller(void){ // Q e o Na
@@ -287,29 +206,8 @@ void t_controller(void){ // Q e o Na
 				t.tv_sec++;
 		}
 	}
-
-
 }
 
-void alert(void){
-	// Thread to alert a max temp
-}
-
-void show_vars(void){
-// Thread to print the vars
-
-	//Variavel para printar
-	int intToPrint = 0;
-
-}
-
-void get_SP(void){
-// Thread to get the SP
-}
-
-void writeToDoc(void){
-
-}
 int main(int argc, char* argv[])
 {	
     f = fopen("times.txt", "w");
@@ -355,11 +253,6 @@ int main(int argc, char* argv[])
 */
 	
 	pthread_create(&T_thread, NULL,(void *) t_controller, NULL);
-	pthread_create(&H_thread, NULL,(void *) h_cntroller, NULL);
-	pthread_create(&print_thread, NULL,(void *) show_vars, NULL);
-	pthread_create(&SP_thread, NULL,(void *) get_SP, NULL);
-	pthread_create(&alert_thread, NULL,(void *) alert, NULL);
-	pthread_create(&write_thread, NULL,(void *) writeToDoc, NULL);
         
     while(1){}
 
