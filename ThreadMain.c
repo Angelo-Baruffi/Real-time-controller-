@@ -54,7 +54,7 @@ int cria_socket_local(void)
 	socket_local = socket( PF_INET, SOCK_DGRAM, 0);
 	if (socket_local < 0) {
 		perror("socket");
-		return;
+		return socket_local;
 	}
 	return socket_local;
 }
