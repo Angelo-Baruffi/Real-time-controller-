@@ -119,7 +119,7 @@ int str_cut(char *str, int begin, int len)
     return len;
 }
 
-void *h_cntroller(void *x_void_ptr){ // Ni e Nf
+void h_cntroller(void){ // Ni e Nf
 // Thread to control the H
 	struct timespec t;
 	int interval = 50000000; /* 50ms*/
@@ -199,7 +199,7 @@ void *h_cntroller(void *x_void_ptr){ // Ni e Nf
 
 }
 
-void *t_controller(void *x_void_ptr){ // Q e o Na
+void t_controller(void){ // Q e o Na
 // Thread to control the T
 	struct timespec t;
 	int interval = 70000000; /* 70ms*/
@@ -280,11 +280,11 @@ void *t_controller(void *x_void_ptr){ // Q e o Na
 
 }
 
-void *alert(void *x_void_ptr){
+void alert(void){
 	// Thread to alert a max temp
 }
 
-void *show_vars(void *x_void_ptr){
+void show_vars(void){
 // Thread to print the vars
 
 	//Variavel para printar
@@ -292,11 +292,11 @@ void *show_vars(void *x_void_ptr){
 
 }
 
-void *get_SP(void *x_void_ptr){
+void get_SP(void){
 // Thread to get the SP
 }
 
-void *writeToDoc(void *x_void_ptr){
+void writeToDoc(void){
 
 }
 int main(int argc, char* argv[])
@@ -341,11 +341,11 @@ int main(int argc, char* argv[])
     fclose(f);
 */
 	
-	pthread_create(&T_thread, NULL, &t_controller, NULL);
-	pthread_create(&H_thread, NULL, &h_cntroller, NULL);
-	pthread_create(&print_thread, NULL, &show_vars, NULL);
-	pthread_create(&SP_thread, NULL, &get_SP, NULL);
-	pthread_create(&alert_thread, NULL, &alert, NULL);
-	pthread_create(&write_thread, NULL, &writeToDoc, NULL);
+	pthread_create(&T_thread, NULL,(void *) t_controller, NULL);
+	pthread_create(&H_thread, NULL,(void *) h_cntroller, NULL);
+	pthread_create(&print_thread, NULL,(void *) show_vars, NULL);
+	pthread_create(&SP_thread, NULL,(void *) get_SP, NULL);
+	pthread_create(&alert_thread, NULL,(void *) alert, NULL);
+	pthread_create(&write_thread, NULL,(void *) writeToDoc, NULL);
 
 }
