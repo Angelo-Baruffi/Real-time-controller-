@@ -22,16 +22,28 @@
 
 /* -lrt */
 
+//Threads parameters
+pthread_mutex_t SP_H_mtx;
+pthread_mutex_t SP_T_mtx;
+pthread_mutex_t em;
+pthread_mutex_t H_mtx;
+pthread_mutex_t T_mtx;
+
+pthread_t T_thread;
+pthread_t H_thread;
+pthread_t print_thread;
+pthread_t SP_thread;
+pthread_t alert_thread;
+pthread_t write_thread;
+
+
 double tempos_H[10000];
 struct timespec tempo_H;
 double tempos_T[10000];
 struct timespec tempo_T;
 FILE *f;
-
-// Set points
-float Href = 2;
-float Tref = 2;
-
+float Href;
+float Tref;
 
 
 int cria_socket_local(void)
@@ -108,6 +120,7 @@ int str_cut(char *str, int begin, int len)
 }
 
 void h_cntroller(void){ // Ni e Nf
+// Thread to control the H
 	struct timespec t;
 	int interval = 50000000; /* 50ms*/
 	
@@ -187,6 +200,7 @@ void h_cntroller(void){ // Ni e Nf
 }
 
 void t_controller(void){ // Q e o Na
+// Thread to control the T
 	struct timespec t;
 	int interval = 70000000; /* 70ms*/
 	
@@ -266,24 +280,33 @@ void t_controller(void){ // Q e o Na
 
 }
 
+void alert(void){
+	// Thread to alert a max temp
+}
+
 void show_vars(void){
+// Thread to print the vars
+
 	//Variavel para printar
 	int intToPrint = 0;
 
 }
 
 void get_SP(void){
+// Thread to get the SP
+}
+
+void writeToDoc(void){
 
 }
 int main(int argc, char* argv[])
 {	
     f = fopen("times.txt", "w");
-	int i = 0;   
-
-	//Variavel para salvar amostras
-
-	
-
+	int i = 0;
+	// Set points
+	Href = 2;
+	Tref = 2;
+/*
 	while(amostras != AMOSTRAS_TO_GET) {
 		
 
@@ -299,7 +322,7 @@ int main(int argc, char* argv[])
 		}
 
 		
-		/* calculate next shot */
+		
 		t.tv_nsec += interval;
 
 		while (t.tv_nsec >= NSEC_PER_SEC) {
@@ -316,4 +339,13 @@ int main(int argc, char* argv[])
         
     
     fclose(f);
+*/
+	
+	pthread_create(&T_thread, NULL, &t_controller, NULL)
+	pthread_create(&H_thread, NULL, &h_cntroller, NULL)
+	pthread_create(&print_thread, NULL, &show_vars, NULL)
+	pthread_create(&SP_thread, NULL, &get_SP, NULL)
+	pthread_create(&alert_thread, NULL, &alert, NULL)
+	pthread_create(&write_thread, NULL, &writeToDoc, NULL)
+
 }
