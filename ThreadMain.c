@@ -232,6 +232,8 @@ void t_controller(void){ // Q e o Na
 
 	int amostras = 0;
 
+        int intToPrint = 0;
+
 
 	clock_gettime(CLOCK_MONOTONIC ,&t);
 	//t.tv_sec++;
@@ -268,6 +270,14 @@ void t_controller(void){ // Q e o Na
 		clock_gettime(CLOCK_MONOTONIC ,&tempo_H);
 		tempos_H[amostras] = (double) difftime(tempo_H.tv_nsec, t.tv_nsec);
 		if(tempos_H[amostras] > 0)amostras++;
+
+                // Mostrar cada resultado a aproximadamente 1s
+		if(intToPrint == 20){
+			printf("Saida do sistema: %lf. Atuacao: %s. Amostras: %i\n", T,msg_recebida, amostras);
+			intToPrint = 0;
+		}else{
+			intToPrint++;
+		}
 
 		/* calculate next shot */
 		t.tv_nsec += interval;
@@ -350,5 +360,8 @@ int main(int argc, char* argv[])
 	pthread_create(&SP_thread, NULL,(void *) get_SP, NULL);
 	pthread_create(&alert_thread, NULL,(void *) alert, NULL);
 	pthread_create(&write_thread, NULL,(void *) writeToDoc, NULL);
+        
+        while(1){}
+
 
 }
