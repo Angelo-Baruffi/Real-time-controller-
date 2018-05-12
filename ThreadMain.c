@@ -156,6 +156,10 @@ void h_cntroller(void){ // Ni e Nf
 	char outputStr2[20];
 
 	int amostras = 0;
+	
+	//Aux vars
+	double Haux;
+	float Href_aux;
 
 
 	clock_gettime(CLOCK_MONOTONIC ,&t);
@@ -171,9 +175,16 @@ void h_cntroller(void){ // Ni e Nf
 		str_cut(msg_recebida, 0, 3);
 		
 		pthread_mutex_lock(&H_mtx);
-		H = atof(msg_recebida);		
-		error = Href - H;
+		H = atof(msg_recebida);	
+		Haux = H;	
 		pthread_mutex_unlock(&H_mtx);
+		
+		pthread_mutex_lock(&SP_H_mtx);
+		Href_aux = Href;
+		pthread_mutex_unlock(&SP_H_mtx);
+				
+		error = Href_aux - Haux;
+		
 
 		integral = integral + (error*interval/NSEC_PER_SEC);
 		derivative = (error - error_prior)/(interval/NSEC_PER_SEC);
@@ -240,6 +251,10 @@ void t_controller(void){ // Q e o Na
 	int amostras = 0;
 
 	int intToPrint = 0;
+	
+	//Aux vars
+	double Taux;
+	float Tref_aux;
 
 
 	clock_gettime(CLOCK_MONOTONIC ,&t);
@@ -257,8 +272,14 @@ void t_controller(void){ // Q e o Na
 		
 		pthread_mutex_lock(&T_mtx);
 		T = atof(msg_recebida);
-		error = Tref - T;
+		Taux = T;
 		pthread_mutex_unlock(&T_mtx);
+		
+		pthread_mutex_lock(&SP_T_mtx);
+		Tref_aux = Tref;
+		pthread_mutex_unlock(&SP_T_mtx);
+
+		error = Tref_aux - Taux;
 
 		integral = integral + (error*interval/NSEC_PER_SEC);
 		derivative = (error - error_prior)/(interval/NSEC_PER_SEC);
@@ -377,6 +398,53 @@ void show_vars(void){
 
 void get_SP(void){
 // Thread to get the SP
+
+	float SP;
+	char SPstr[20];
+	char SPtype;
+		
+	char prev;
+	
+	
+	while(1){
+	    char c = getchar();
+
+		if(c == '\n' && prev != '\n'){
+			pthread_mutex_lock(&cmd);
+			printf( "Enter a value with TX.X or HX.X:  ");
+			scanf("%s", &SPstr);
+			printf("The value is %s\n", SPstr);
+			pthread_mutex_unlock(&cmd);
+			prev = c;
+			
+			SPtype = SPstr[0];
+			str_cut(SPstr, 0, 1);		
+			SP = atof(SPstr);
+
+			
+			if(SPtype == 'T'){
+				pthread_mutex_lock(&SP_T_mtx);
+				Tref = SP;
+				pthread_mutex_unlock(&SP_T_mtx);
+			
+			}else if(SPtype == 'H'){
+				pthread_mutex_lock(&SP_H_mtx);
+				Href = SP;
+				pthread_mutex_unlock(&SP_H_mtx);
+
+			}else{
+				pthread_mutex_lock(&cmd);
+				printf( "SP TYPE ERROR\n");
+				pthread_mutex_unlock(&cmd);
+			}		
+	
+		}else{
+			prev = 'c';
+		}
+
+	}
+	
+
 }
 
 void writeToDoc(void){
