@@ -26,6 +26,7 @@
 pthread_mutex_t SP_H_mtx;
 pthread_mutex_t SP_T_mtx;
 pthread_mutex_t em;
+pthread_mutex_t cmd;
 pthread_mutex_t H_mtx;
 pthread_mutex_t T_mtx;
 
@@ -45,6 +46,9 @@ struct timespec tempo_T;
 FILE *f;
 float Href;
 float Tref;
+
+double T;
+double H;
 
 
 int cria_socket_local(void)
@@ -94,7 +98,6 @@ void envia_mensagem(int socket_local, struct sockaddr_in endereco_destino, char 
 	}
 }
 
-
 int recebe_mensagem(int socket_local, char *buffer, int TAM_BUFFER)
 {
 	int bytes_recebidos;		/* N mero de bytes recebidos */
@@ -119,6 +122,9 @@ int str_cut(char *str, int begin, int len)
 
     return len;
 }
+
+/*_______________________________________________________*/
+/*_______________________________________________________*/
 
 void h_cntroller(void){ // Ni e Nf
 // Thread to control the H
@@ -146,7 +152,6 @@ void h_cntroller(void){ // Ni e Nf
 	float KP = 10000;
 	float KI = 50000;
 	float output = 0;
-	double H = 0;
 	char outputStr[] = "ani";
 	char outputStr2[20];
 
@@ -164,9 +169,12 @@ void h_cntroller(void){ // Ni e Nf
 		msg_recebida[nrec]='\0';
 
 		str_cut(msg_recebida, 0, 3);
-		H = atof(msg_recebida);
 		
+		pthread_mutex_lock(&H_mtx);
+		H = atof(msg_recebida);		
 		error = Href - H;
+		pthread_mutex_unlock(&H_mtx);
+
 		integral = integral + (error*interval/NSEC_PER_SEC);
 		derivative = (error - error_prior)/(interval/NSEC_PER_SEC);
 		output = KP*error + KI*integral + bias;
@@ -223,10 +231,9 @@ void t_controller(void){ // Q e o Na
 	float integral = 0;
 	float derivative = 0;
 	float bias = 0.0000001;
-	float KP = 10000;
-	float KI = 50000;
+	float KP = 100000000;
+	float KI = 5000000;
 	float output = 0;
-	double T = 0;
 	char outputStr[] = "aq-";
 	char outputStr2[20];
 
@@ -241,14 +248,18 @@ void t_controller(void){ // Q e o Na
 	while(amostras != AMOSTRAS_TO_GET){
 		clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL);
 
-		envia_mensagem(socket_local, endereco_destino, "sti0");
+		envia_mensagem(socket_local, endereco_destino, "st-0");
 		nrec = recebe_mensagem(socket_local, msg_recebida, 1000);
 		msg_recebida[nrec]='\0';
 
+
 		str_cut(msg_recebida, 0, 3);
-		T = atof(msg_recebida);
 		
+		pthread_mutex_lock(&T_mtx);
+		T = atof(msg_recebida);
 		error = Tref - T;
+		pthread_mutex_unlock(&T_mtx);
+
 		integral = integral + (error*interval/NSEC_PER_SEC);
 		derivative = (error - error_prior)/(interval/NSEC_PER_SEC);
 		output = KP*error + KI*integral + bias;
@@ -267,17 +278,11 @@ void t_controller(void){ // Q e o Na
 		strcpy(outputStr, "aq-");
 
 		//Calcula tempo de execucao
-		clock_gettime(CLOCK_MONOTONIC ,&tempo_H);
-		tempos_H[amostras] = (double) difftime(tempo_H.tv_nsec, t.tv_nsec);
-		if(tempos_H[amostras] > 0)amostras++;
+		clock_gettime(CLOCK_MONOTONIC ,&tempo_T);
+		tempos_T[amostras] = (double) difftime(tempo_T.tv_nsec, t.tv_nsec);
+		if(tempos_T[amostras] > 0)amostras++;
 
-        / Mostrar cada resultado a aproximadamente 1s
-		if(intToPrint == 20){
-			printf("Saida do sistema: %lf. Atuacao: %s. Amostras: %i\n", T,msg_recebida, amostras);
-			intToPrint = 0;
-		}else{
-			intToPrint++;
-		}
+  
 
 		/* calculate next shot */
 		t.tv_nsec += interval;
@@ -293,14 +298,81 @@ void t_controller(void){ // Q e o Na
 
 void alert(void){
 	// Thread to alert a max temp
+		struct timespec t;
+	int interval = 10000000; /* 10ms*/
+	
+	/*Variaveis de comunicação*/
+
+	int porta_destino = atoi( arg[2]);
+
+	int socket_local = cria_socket_local();
+
+	struct sockaddr_in endereco_destino = cria_endereco_destino(arg[1], porta_destino);
+
+	char msg_enviada[1000];  
+	char msg_recebida[1000];
+	int nrec;
+
+	/*Variaveis de controle*/
+	
+	double T = 0;
+
+	clock_gettime(CLOCK_MONOTONIC ,&t);
+
+	while(1){
+		clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL);
+
+		envia_mensagem(socket_local, endereco_destino, "st-0");
+		nrec = recebe_mensagem(socket_local, msg_recebida, 1000);
+		//printf("%c \n", msg_recebida);
+		msg_recebida[nrec]='\0';
+		str_cut(msg_recebida, 0, 3);
+		T = atof(msg_recebida);
+		
+		if(T >= 50){
+			pthread_mutex_lock(&cmd);
+
+			printf("ALERT T= %lf\n", T);
+			
+			pthread_mutex_unlock(&cmd);
+
+		}
+		
+		/* calculate next shot */
+		t.tv_nsec += interval;
+
+		while (t.tv_nsec >= NSEC_PER_SEC) {
+				t.tv_nsec -= NSEC_PER_SEC;
+				t.tv_sec++;
+		}
+	}
+
+
 }
 
 void show_vars(void){
 // Thread to print the vars
+	
+	double T_aux;
+	double H_aux;
+	
+	while(1){
+		usleep(1000*1000);
+		// Mostrar cada resultado a aproximadamente 1s
+		
+		pthread_mutex_lock(&cmd);
+		pthread_mutex_lock(&T_mtx);
+		pthread_mutex_lock(&H_mtx);
+		T_aux = T;
+		H_aux = H;
+		pthread_mutex_unlock(&cmd);
+		pthread_mutex_unlock(&T_mtx);
+		pthread_mutex_unlock(&H_mtx);
+			
+		printf("Temperatura do Sistema: %lf. Altura do Nivel: %lf\n", T_aux, H_aux);
 
-	//Variavel para printar
-	int intToPrint = 0;
-
+	}
+	
 }
 
 void get_SP(void){
@@ -310,13 +382,14 @@ void get_SP(void){
 void writeToDoc(void){
 
 }
+
 int main(int argc, char* argv[])
 {	
     f = fopen("times.txt", "w");
 	int i = 0;
 	// Set points
 	Href = 2;
-	Tref = 2;
+	Tref = 20;
 	arg[2] = argv[2];
 	arg[1] = argv[1];
 /*
