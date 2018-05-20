@@ -20,15 +20,18 @@
 
 #define AMOSTRAS_TO_GET 10000
 
+#define N_MAX 10000
+
+
 /* -lrt */
 
 //Threads parameters
-pthread_mutex_t SP_H_mtx;
-pthread_mutex_t SP_T_mtx;
-pthread_mutex_t em;
-pthread_mutex_t cmd;
-pthread_mutex_t H_mtx;
-pthread_mutex_t T_mtx;
+pthread_mutex_t SP_H_mtx = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t SP_T_mtx = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t emH = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t cmd = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t H_mtx = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t T_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 pthread_t T_thread;
 pthread_t H_thread;
@@ -37,18 +40,24 @@ pthread_t SP_thread;
 pthread_t alert_thread;
 pthread_t write_thread;
 
+pthread_cond_t condH = PTHREAD_COND_INITIALIZER;
+
 char* arg[3];
 
-double tempos_H[10000];
+double tempos_H[N_MAX];
 struct timespec tempo_H;
-double tempos_T[10000];
+double tempos_T[N_MAX];
 struct timespec tempo_T;
-FILE *f;
+FILE *fH;
 float Href;
 float Tref;
 
 double T;
 double H;
+
+//Vars to monitor
+int iH;
+int iHl;
 
 
 int cria_socket_local(void)
@@ -125,6 +134,28 @@ int str_cut(char *str, int begin, int len)
 
 /*_______________________________________________________*/
 /*_______________________________________________________*/
+void insereH(double value){
+	pthread_mutex_lock(&emH);
+	if(iH < N_MAX){
+		tempos_H[iH] = value;
+		iH++;
+		pthread_cond_signal( &condH ); 
+
+	}	
+	pthread_mutex_unlock(&emH);
+}
+void escreveH(void){
+	float aux;
+	pthread_mutex_lock(&emH);
+	while(iHl >= iH){
+		pthread_cond_wait( & condH, &emH );
+	}
+	aux = tempos_H[iHl];
+	iHl++;	
+	pthread_mutex_unlock(&emH);
+	fprintf(fH, "%lf\n", aux/1000);
+
+}
 
 void h_cntroller(void){ // Ni e Nf
 // Thread to control the H
@@ -160,6 +191,8 @@ void h_cntroller(void){ // Ni e Nf
 	//Aux vars
 	double Haux;
 	float Href_aux;
+	
+	double aux_tmp;
 
 
 	clock_gettime(CLOCK_MONOTONIC ,&t);
@@ -178,7 +211,7 @@ void h_cntroller(void){ // Ni e Nf
 		H = atof(msg_recebida);	
 		Haux = H;	
 		pthread_mutex_unlock(&H_mtx);
-		
+				
 		pthread_mutex_lock(&SP_H_mtx);
 		Href_aux = Href;
 		pthread_mutex_unlock(&SP_H_mtx);
@@ -205,8 +238,8 @@ void h_cntroller(void){ // Ni e Nf
 
 		//Calcula tempo de execucao
 		clock_gettime(CLOCK_MONOTONIC ,&tempo_H);
-		tempos_H[amostras] = (double) difftime(tempo_H.tv_nsec, t.tv_nsec);
-		if(tempos_H[amostras] > 0)amostras++;
+		aux_tmp = (double) difftime(tempo_H.tv_nsec, t.tv_nsec);
+		if(aux_tmp > 0)insereH(aux_tmp);
 
 		/* calculate next shot */
 		t.tv_nsec += interval;
@@ -390,7 +423,7 @@ void show_vars(void){
 		pthread_mutex_unlock(&T_mtx);
 		pthread_mutex_unlock(&H_mtx);
 			
-		printf("Temperatura do Sistema: %lf. Altura do Nivel: %lf\n", T_aux, H_aux);
+		printf("Temperatura do Sistema: %lf. Altura do Nivel: %lf. SP.T:%f. SP.H: %f. Save Values: %i\n", T_aux, H_aux, Tref, Href, iHl);
 
 	}
 	
@@ -448,13 +481,19 @@ void get_SP(void){
 }
 
 void writeToDoc(void){
+  while(iHl < N_MAX){
+	  escreveH();
+
+	}
+	fclose(fH);
 
 }
 
-int main(int argc, char* argv[])
-{	
-    f = fopen("times.txt", "w");
-	int i = 0;
+int main(int argc, char* argv[]){
+	
+    fH = fopen("timesH.txt", "w");
+	iH = 0;
+	iHl = 0;
 	// Set points
 	Href = 2;
 	Tref = 20;
@@ -492,7 +531,7 @@ int main(int argc, char* argv[])
         fprintf(f, "%lf\n", tempos_H[i]/1000);
         
     
-    fclose(f);
+    
 */
 	
 	pthread_create(&T_thread, NULL,(void *) t_controller, NULL);
@@ -503,6 +542,6 @@ int main(int argc, char* argv[])
 	pthread_create(&write_thread, NULL,(void *) writeToDoc, NULL);
         
     while(1){}
-
+	fclose(fH);
 
 }
